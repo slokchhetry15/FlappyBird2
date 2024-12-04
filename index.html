@@ -1,173 +1,190 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-    <title>Flappy Bird 2</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird Game</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             margin: 0;
+            padding: 0;
+            background: linear-gradient(
+                45deg,
+                #000000,
+                #1a0f30,
+                #2a1b4a
+            );
+            min-height: 100vh;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            background: #121212;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
         }
 
         .game-container {
             position: relative;
-            width: 480px;
-            height: 640px;
-            border-radius: 15px;
-            overflow: hidden;
-            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            margin: auto;
+            padding-top: 70px;
+            overflow: visible;
         }
 
-        canvas {
-            display: block;
-            background: linear-gradient(180deg, #1a1a1a 0%, #2a2a2a 100%);
-        }
-
-        .menu-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
+        #gameCanvas {
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.85);
+            border-radius: 12px;
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2),
+                        inset 0 0 20px rgba(0, 255, 255, 0.1);
+            background-color: rgba(0, 0, 0, 0.8);
+            display: block;
+        }
+
+        .score-container {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            pointer-events: none;
+            color: #00ffff;
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            font-weight: bold;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: center;
+        }
+
+        #score {
+            font-size: 24px;
+        }
+
+        #bestScore, #coinsDisplay {
+            font-size: 18px;
+            opacity: 0.8;
+        }
+
+        #coinsDisplay {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #coinsDisplay i {
+            color: #ffd700; /* Golden color for coins */
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        /* Remove the old kums display styles */
+        #kumsDisplay {
+            display: none;
+        }
+
+        #powerUpIndicator {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2);
+            color: #00ffff;
+        }
+
+        #menuOverlay {
+            position: absolute;
+            inset: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 20px;
+            background: rgba(0, 0, 0, 0.9);
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            border: 2px solid rgba(0, 255, 255, 0.3);
+            padding: 20px;
         }
 
         .game-title {
-            color: white;
-            font-size: 36px;
+            color: #00ffff;
+            font-size: 48px;
             font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 2px;
+            text-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
             margin-bottom: 20px;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+            letter-spacing: 2px;
+        }
+
+        .game-subtitle {
+            color: rgba(0, 255, 255, 0.8);
+            font-size: 18px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.5;
         }
 
         #startBtn {
-            padding: 15px 40px;
-            font-size: 20px;
-            background: linear-gradient(145deg, #4CAF50, #45a049);
-            color: white;
+            background: linear-gradient(45deg, #00ffff, #00ccff);
             border: none;
-            border-radius: 30px;
+            padding: 12px 30px;
+            border-radius: 25px;
+            color: #000;
+            font-weight: bold;
+            font-size: 18px;
             cursor: pointer;
             transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.3);
             text-transform: uppercase;
             letter-spacing: 1px;
-            box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
         }
 
         #startBtn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.5);
         }
 
-        #score {
-            position: absolute;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            color: white;
-            font-size: 28px;
-            font-weight: bold;
-            z-index: 1;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-            background: rgba(0, 0, 0, 0.3);
-            padding: 5px 15px;
-            border-radius: 20px;
-        }
+        @media (max-width: 480px) {
+            .game-container {
+                margin: 10px;
+            }
 
-        .best-score {
-            color: #4CAF50;
-            font-size: 20px;
-            margin-top: 10px;
-        }
+            .game-title {
+                font-size: 36px;
+            }
 
-        /* Add CSS styles for the menu */
-        .menu-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-        }
+            .game-subtitle {
+                font-size: 16px;
+            }
 
-        .menu-content {
-            background: linear-gradient(135deg, #1a1a1a, #333);
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-            text-align: center;
-            color: white;
-            font-family: 'Arial', sans-serif;
-        }
+            #score {
+                font-size: 20px;
+            }
 
-        .game-title {
-            font-size: 36px;
-            margin-bottom: 20px;
-            color: #ffd700;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-        }
-
-        .menu-button {
-            background: #4287f5;
-            color: white;
-            border: none;
-            padding: 15px 30px;
-            font-size: 18px;
-            border-radius: 10px;
-            cursor: pointer;
-            transition: background 0.3s;
-            margin-bottom: 20px;
-        }
-
-        .menu-button:hover {
-            background: #1a56c4;
-        }
-
-        .instructions {
-            font-size: 16px;
-            margin-bottom: 20px;
-        }
-
-        .best-score {
-            font-size: 18px;
-            color: #ffd700;
+            #bestScore {
+                font-size: 16px;
+            }
         }
     </style>
 </head>
-
 <body>
     <div class="game-container">
-        <div id="score">Score: 0</div>
-        <canvas id="gameCanvas"></canvas>
-        <div id="menuOverlay" class="menu-overlay">
-            <div class="menu-content">
-                <h1 class="game-title">Flappy Game</h1>
-                <button id="startBtn" class="menu-button">Start Game</button>
-                <div class="instructions">
-                    <p>Tap or press SPACE to fly</p>
-                </div>
-                <div id="bestScore" class="best-score">Best Score: 0</div>
+        <div class="score-container">
+            <div id="score">Score: 0</div>
+            <div id="bestScore">Best: 0</div>
+            <div id="coinsDisplay">
+                <i class="fas fa-coins"></i>
+                <span>0</span>
             </div>
+        </div>
+        <canvas id="gameCanvas"></canvas>
+        <div id="powerUpIndicator" style="display: none;"></div>
+        <div id="menuOverlay">
+            <h1 class="game-title">Flappy Bird</h1>
+            <button id="startBtn">Start Game</button>
         </div>
     </div>
     <script src="game.js"></script>
 </body>
-
 </html>
