@@ -50,12 +50,12 @@ const powerUps = {
         gradient: ['#4287f5', '#1a56c4'],
         icon: 'fa-shield-halved'  // Font Awesome shield icon
     },
-    SLOW_TIME: { 
-        type: 'slowTime', 
-        duration: 3000, 
-        color: 'rgba(245, 66, 242, 0.8)',
-        gradient: ['#f542f2', '#b816b5'],
-        icon: 'fa-clock'  // Font Awesome clock icon
+    DOUBLE_SCORE: { 
+        type: 'doubleScore', 
+        duration: 5000, 
+        color: 'rgba(255, 215, 0, 0.8)', // Gold color
+        gradient: ['#ffd700', '#b8860b'],
+        icon: 'fa-star'  // Font Awesome star icon
     },
     SMALL_BIRD: { 
         type: 'smallBird', 
@@ -68,16 +68,26 @@ const powerUps = {
 
 const POWER_UP_ICONS = {
     shield: '⚡',
-    slowTime: '★',
+    doubleScore: '★',
     smallBird: '◊'
 };
 
+// Add this near the top of your file with other constants
+const MIN_POWER_UP_DISTANCE = 400; // Minimum distance between power-ups
+const POWER_UP_SPAWN_RATE = 0.003; // 0.3% chance per frame
+const MAX_POWER_UPS = 2;
+
+// Add this at the top of your file with other game state variables
+const powerUpHistory = {
+    firstGame: !localStorage.getItem('hasPlayedBefore'),
+    seenPowerUps: JSON.parse(localStorage.getItem('seenPowerUps') || '{}')
+};
+
+// Update the createPowerUp function
 function createPowerUp() {
     const types = Object.values(powerUps);
     let validPosition = false;
     let powerUp;
-
-    // Limit attempts to prevent infinite loop
     let attempts = 0;
     const maxAttempts = 100;
 
@@ -98,6 +108,15 @@ function createPowerUp() {
                 break;
             }
         }
+
+        // Check distance from other power-ups
+        for (const existingPowerUp of activePowerUps) {
+            if (Math.abs(existingPowerUp.x - powerUp.x) < MIN_POWER_UP_DISTANCE) {
+                validPosition = false;
+                break;
+            }
+        }
+
         attempts++;
     }
 
@@ -112,7 +131,7 @@ function createPowerUp() {
 let activePowerUps = [];
 let currentPowerUp = null;
 let powerUpsEnabled = false;
-const POWER_UP_START_SCORE = 5; // Power-ups start appearing after 5 points
+const POWER_UP_START_SCORE = 0; // Power-ups available from the start
 
 // Create pipe pairs
 function createPipe() {
@@ -141,11 +160,27 @@ function startGame() {
     gameLoop = requestAnimationFrame(update);
 }
 
-// Game loop
+// Add these variables at the top with other game variables
+let lastScoreUpdate = Date.now();
+let scoreMultiplier = 1;
+
+// Update the update function to use time-based scoring
 function update() {
     if (!gameStarted) return;
 
     try {
+        // Update score based on time (50 points per second)
+        const currentTime = Date.now();
+        const timeDiff = currentTime - lastScoreUpdate;
+        if (timeDiff >= 1000) { // Every second
+            score += 50 * scoreMultiplier;
+            scoreDisplay.textContent = `Score: ${Math.floor(score)}`;
+            lastScoreUpdate = currentTime;
+        }
+
+        // Rest of your update function...
+        // Remove any score updates based on pipes
+
         // Bird physics
         if (!bird.initialDelay) {
             bird.velocity += bird.gravity;
@@ -300,6 +335,13 @@ function resetGame() {
     kums = [];
     kumsCollected = 0;
     updateKumsDisplay();
+    lastScoreUpdate = Date.now();
+    scoreMultiplier = 1;
+
+    // Reset power-up states
+    activePowerUps = [];
+    currentPowerUp = null;
+    powerUpsEnabled = true;  // Enable power-ups from the start
 }
 
 function gameOver() {
@@ -388,8 +430,8 @@ function activatePowerUp(powerUpType) {
         case 'shield':
             bird.isShielded = true;
             break;
-        case 'slowTime':
-            gameSpeed = 0.5;
+        case 'doubleScore':
+            scoreMultiplier = 2;
             break;
         case 'smallBird':
             bird.isSmall = true;
@@ -413,8 +455,8 @@ function deactivatePowerUp(type) {
         case 'shield':
             bird.isShielded = false;
             break;
-        case 'slowTime':
-            gameSpeed = 1;
+        case 'doubleScore':
+            scoreMultiplier = 1;
             break;
         case 'smallBird':
             bird.isSmall = false;
@@ -422,48 +464,57 @@ function deactivatePowerUp(type) {
             break;
     }
     currentPowerUp = null;
+    
+    // Add this: Remove the power-up indicator when deactivated
+    const indicator = document.getElementById('powerUpIndicator');
+    if (indicator) {
+        indicator.remove();
+    }
 }
 
 function updatePowerUps() {
-    if (score < POWER_UP_START_SCORE) {
-        return;
-    }
-
-    if (!powerUpsEnabled) {
-        powerUpsEnabled = true;
-    }
-
-    // Spawn new power-up with reduced probability
-    if (Math.random() < 0.002 && !currentPowerUp && activePowerUps.length < 1) {
-        const newPowerUp = createPowerUp();
-        // Ensure power-up is in a valid position
-        if (newPowerUp) {
-            activePowerUps.push(newPowerUp);
-        }
-    }
-
-    // Update existing power-ups
-    for (let i = activePowerUps.length - 1; i >= 0; i--) {
-        const powerUp = activePowerUps[i];
-        powerUp.x -= 3 * gameSpeed;
-
-        // Remove off-screen power-ups
-        if (powerUp.x < -powerUp.size) {
-            activePowerUps.splice(i, 1);
-            continue;
-        }
-
-        // Check collision with bird
-        if (!powerUp.collected && 
-            bird.x < powerUp.x + powerUp.size &&
-            bird.x + bird.size > powerUp.x &&
-            bird.y < powerUp.y + powerUp.size &&
-            bird.y + bird.size > powerUp.y) {
+    try {
+        // Spawn new power-up
+        if (Math.random() < POWER_UP_SPAWN_RATE && activePowerUps.length < MAX_POWER_UPS) {
+            // Check if there's enough distance from existing power-ups
+            const canSpawn = activePowerUps.every(powerUp => 
+                powerUp.x < canvas.width - MIN_POWER_UP_DISTANCE
+            );
             
-            activatePowerUp(powerUp.type);
-            powerUp.collected = true;
-            activePowerUps.splice(i, 1);
+            if (canSpawn) {
+                const newPowerUp = createPowerUp();
+                if (newPowerUp) {
+                    activePowerUps.push(newPowerUp);
+                }
+            }
         }
+
+        // Update existing power-ups
+        for (let i = activePowerUps.length - 1; i >= 0; i--) {
+            const powerUp = activePowerUps[i];
+            powerUp.x -= 3 * gameSpeed;
+
+            // Remove off-screen power-ups
+            if (powerUp.x < -powerUp.size) {
+                activePowerUps.splice(i, 1);
+                continue;
+            }
+
+            // Check collision with bird
+            if (!powerUp.collected && 
+                bird.x < powerUp.x + powerUp.size &&
+                bird.x + bird.size > powerUp.x &&
+                bird.y < powerUp.y + powerUp.size &&
+                bird.y + bird.size > powerUp.y) {
+                
+                showPowerUpMessage(powerUp.type.type);
+                activatePowerUp(powerUp.type);
+                powerUp.collected = true;
+                activePowerUps.splice(i, 1);
+            }
+        }
+    } catch (error) {
+        console.error('Error updating power-ups:', error);
     }
 }
 
@@ -604,17 +655,17 @@ function drawPowerUpIcon(ctx, type, x, y, size) {
             ctx.stroke();
             break;
 
-        case 'slowTime':
-            // Draw clock icon
+        case 'doubleScore':
+            // Draw star icon
             ctx.beginPath();
             ctx.arc(x, y, size/2, 0, Math.PI * 2);
-            ctx.fillStyle = '#f542f2';
+            ctx.fillStyle = '#ffd700';
             ctx.fill();
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.stroke();
             
-            // Draw clock hands
+            // Draw star rays
             ctx.beginPath();
             ctx.moveTo(x, y);
             ctx.lineTo(x, y - size/3);
@@ -819,13 +870,27 @@ function createKumCollectEffect(x, y) {
     }
 }
 
-// Update function remains the same
+// Adjust these constants at the top of your file
+const MAX_KUMS = 2;  // Maximum number of kums on screen
+const KUM_SPAWN_RATE = 0.003;  // Reduced spawn rate (was 0.01)
+const MIN_KUM_DISTANCE = 300;  // Minimum distance between kums
+
+// Update the updateKums function
 function updateKums() {
-    if (Math.random() < 0.01 && kums.length < 3) {
-        const newKum = createKum();
-        if (newKum) kums.push(newKum);
+    // Only spawn if we have less than maximum kums
+    if (Math.random() < KUM_SPAWN_RATE && kums.length < MAX_KUMS) {
+        // Check if there's enough distance from the last kum
+        const canSpawn = kums.every(kum => 
+            kum.x < canvas.width - MIN_KUM_DISTANCE
+        );
+        
+        if (canSpawn) {
+            const newKum = createKum();
+            if (newKum) kums.push(newKum);
+        }
     }
 
+    // Rest of the function remains the same
     for (let i = kums.length - 1; i >= 0; i--) {
         const kum = kums[i];
         kum.x -= 3 * gameSpeed;
@@ -854,18 +919,27 @@ function updateKums() {
 
 // Create power-up indicator element
 function createPowerUpIndicator() {
+    const existingIndicator = document.getElementById('powerUpIndicator');
+    if (existingIndicator) {
+        existingIndicator.remove();
+    }
+
     const indicator = document.createElement('div');
     indicator.id = 'powerUpIndicator';
     indicator.style.cssText = `
         position: absolute;
         top: 60px;
         left: 10px;
-        background: rgba(0, 0, 0, 0.7);
-        padding: 10px;
-        border-radius: 5px;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 15px;
+        border-radius: 10px;
         color: white;
         font-family: Arial, sans-serif;
+        font-size: 16px;
         font-weight: bold;
+        z-index: 1000;
+        box-shadow: 0 0 10px rgba(0,0,0,0.5);
+        border: 2px solid rgba(255,255,255,0.2);
     `;
     document.body.appendChild(indicator);
     return indicator;
@@ -941,4 +1015,81 @@ function drawPowerUp(powerUp) {
         ctx.restore();
     }
 }
+
+// Update the showPowerUpMessage function
+function showPowerUpMessage(type) {
+    try {
+        // Only show messages in first game or for first-time power-ups
+        if (!powerUpHistory.firstGame && powerUpHistory.seenPowerUps[type]) {
+            return;
+        }
+
+        // Mark this power-up as seen
+        powerUpHistory.seenPowerUps[type] = true;
+        localStorage.setItem('seenPowerUps', JSON.stringify(powerUpHistory.seenPowerUps));
+
+        const messages = {
+            shield: 'Shield Activated! You are invincible!',
+            doubleScore: 'Double Score! Points are worth 2x!',
+            smallBird: 'Size Down! Easier to avoid obstacles!'
+        };
+
+        const message = document.createElement('div');
+        message.className = 'power-up-message';
+        
+        const powerUpKey = type.toUpperCase().replace(/\s+/g, '_');
+        const powerUpIcon = powerUps[powerUpKey]?.icon || 'fa-star';
+        
+        message.innerHTML = `
+            <div class="power-up-icon">
+                <i class="fas ${powerUpIcon}"></i>
+            </div>
+            <div class="power-up-text">
+                <div class="power-up-title">${type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
+                <div class="power-up-description">${messages[type] || 'Power-up activated!'}</div>
+            </div>
+        `;
+        
+        message.style.cssText = `
+            position: absolute;
+            top: 20%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
+            color: white;
+            padding: 15px 20px;
+            border-radius: 12px;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            font-weight: bold;
+            animation: slideInAndFade 2.5s ease-in-out forwards;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(5px);
+            min-width: 300px;
+            max-width: 400px;
+        `;
+        
+        document.body.appendChild(message);
+        setTimeout(() => message.remove(), 2500);
+    } catch (error) {
+        console.error('Error showing power-up message:', error);
+    }
+}
+
+// Add enhanced CSS animations
+const powerUpStyles = `
+    .power-up-message {
+        pointer-events: none;
+    }
+`;
+
+// Add the styles to the document
+const powerUpStyleSheet = document.createElement('style');
+powerUpStyleSheet.textContent = powerUpStyles;
+document.head.appendChild(powerUpStyleSheet);
   
