@@ -6,8 +6,8 @@ const menuOverlay = document.getElementById('menuOverlay');
 const bestScoreDisplay = document.getElementById('bestScore');
 
 // Set fixed game dimensions
-canvas.width = 480;
-canvas.height = 640;
+canvas.width = Math.min(window.innerWidth - 40, 480); // 20px margin on each side
+canvas.height = Math.min(window.innerHeight - 40, 640); // 20px margin on each side
 
 // Load bird image
 const birdImg = new Image();
@@ -46,23 +46,23 @@ const powerUps = {
     SHIELD: { 
         type: 'shield', 
         duration: 5000, 
-        color: 'rgba(66, 135, 245, 0.8)',
-        gradient: ['#4287f5', '#1a56c4'],
-        icon: 'fa-shield-halved'  // Font Awesome shield icon
+        color: 'rgba(0, 255, 255, 0.8)',     // Cyan
+        gradient: ['#00ffff', '#00ccff'],     // Cyan to bright blue
+        icon: 'fa-shield-halved'
     },
     DOUBLE_SCORE: { 
         type: 'doubleScore', 
         duration: 5000, 
-        color: 'rgba(255, 215, 0, 0.8)', // Gold color
-        gradient: ['#ffd700', '#b8860b'],
-        icon: 'fa-star'  // Font Awesome star icon
+        color: 'rgba(255, 0, 255, 0.8)',     // Magenta
+        gradient: ['#ff00ff', '#ff1493'],     // Magenta to deep pink
+        icon: 'fa-star'
     },
     SMALL_BIRD: { 
         type: 'smallBird', 
         duration: 4000, 
-        color: 'rgba(66, 245, 84, 0.8)',
-        gradient: ['#42f554', '#1cb82b'],
-        icon: 'fa-compress'  // Font Awesome compress icon
+        color: 'rgba(0, 255, 0, 0.8)',       // Lime
+        gradient: ['#00ff00', '#32cd32'],     // Lime to lime green
+        icon: 'fa-compress'
     }
 };
 
@@ -251,26 +251,38 @@ function update() {
 function drawPipe(x, topHeight, bottomY) {
     const pipeWidth = 70;
     
-    // Top pipe
-    ctx.fillStyle = '#2d2d2d';
+    // Create neon gradient for pipes
+    const pipeGradient = ctx.createLinearGradient(x, 0, x + pipeWidth, 0);
+    pipeGradient.addColorStop(0, 'rgba(255, 0, 255, 0.8)');    // Magenta
+    pipeGradient.addColorStop(0.5, 'rgba(255, 105, 180, 0.7)'); // Hot pink
+    pipeGradient.addColorStop(1, 'rgba(255, 20, 147, 0.8)');    // Deep pink
+
+    // Create neon gradient for pipe caps
+    const capGradient = ctx.createLinearGradient(x, 0, x + pipeWidth, 0);
+    capGradient.addColorStop(0, 'rgba(0, 255, 255, 0.9)');     // Cyan
+    capGradient.addColorStop(1, 'rgba(0, 191, 255, 0.9)');     // Deep sky blue
+    
+    // Add glow effect
+    ctx.shadowColor = 'rgba(255, 0, 255, 0.8)';
+    ctx.shadowBlur = 15;
+    
+    // Draw pipes with gradients
+    ctx.fillStyle = pipeGradient;
     ctx.fillRect(x, 0, pipeWidth, topHeight);
-    
-    // Top pipe cap
-    ctx.fillStyle = '#3d3d3d';
-    ctx.fillRect(x - 5, topHeight - 30, pipeWidth + 10, 30);
-    
-    // Bottom pipe
-    ctx.fillStyle = '#2d2d2d';
     ctx.fillRect(x, bottomY, pipeWidth, canvas.height - bottomY);
     
-    // Bottom pipe cap
-    ctx.fillStyle = '#3d3d3d';
+    // Draw caps with different gradient
+    ctx.fillStyle = capGradient;
+    ctx.fillRect(x - 5, topHeight - 30, pipeWidth + 10, 30);
     ctx.fillRect(x - 5, bottomY, pipeWidth + 10, 30);
     
-    // Pipe highlights
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    // Add shine effect
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.fillRect(x + 10, 0, 5, topHeight);
     ctx.fillRect(x + 10, bottomY, 5, canvas.height - bottomY);
+    
+    // Reset shadow
+    ctx.shadowBlur = 0;
 }
 
 function draw() {
@@ -553,22 +565,33 @@ class Environment {
         const width = ctx.canvas.width;
         const height = ctx.canvas.height;
         
-        // Create gradient based on time of day
+        // Create a neon gradient for the background
         const gradient = ctx.createLinearGradient(0, 0, 0, height);
-        
-        if (this.time < 0.25) { // Dawn
-            gradient.addColorStop(0, '#1a1a3a');
-            gradient.addColorStop(1, '#ff7f50');
-        } else if (this.time < 0.75) { // Day
-            gradient.addColorStop(0, '#1a1a1a');
-            gradient.addColorStop(1, '#2a2a2a');
-        } else { // Dusk
-            gradient.addColorStop(0, '#1a1a3a');
-            gradient.addColorStop(1, '#4a1a1a');
-        }
+        gradient.addColorStop(0, 'rgba(0, 0, 0, 0.8)');       // Dark background
+        gradient.addColorStop(0.5, 'rgba(75, 0, 130, 0.6)');  // Indigo
+        gradient.addColorStop(1, 'rgba(148, 0, 211, 0.5)');   // Dark violet
         
         ctx.fillStyle = gradient;
         ctx.fillRect(0, 0, width, height);
+        
+        // Add a grid pattern for a cyberpunk effect
+        const gridSize = 40;
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.2)'; // Light cyan grid lines
+        ctx.lineWidth = 1;
+        
+        for (let x = 0; x < width; x += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(x, 0);
+            ctx.lineTo(x, height);
+            ctx.stroke();
+        }
+        
+        for (let y = 0; y < height; y += gridSize) {
+            ctx.beginPath();
+            ctx.moveTo(0, y);
+            ctx.lineTo(width, y);
+            ctx.stroke();
+        }
         
         // Add stars at night
         if (this.time > 0.75 || this.time < 0.25) {
@@ -698,29 +721,28 @@ function drawBird() {
     ctx.save();
     ctx.translate(bird.x + bird.size/2, bird.y + bird.size/2);
     
-    // Add rotation based on velocity
     const rotation = Math.min(Math.max(bird.velocity * 0.05, -0.5), 0.5);
     ctx.rotate(rotation);
 
-    // Draw shield effect if active
     if (bird.isShielded) {
-        // Shield glow
+        // Neon shield effect
         const shieldGradient = ctx.createRadialGradient(0, 0, bird.size/2, 0, 0, bird.size);
-        shieldGradient.addColorStop(0, 'rgba(66, 135, 245, 0.2)');
-        shieldGradient.addColorStop(1, 'rgba(66, 135, 245, 0.1)');
+        shieldGradient.addColorStop(0, 'rgba(0, 255, 255, 0.2)');   // Cyan
+        shieldGradient.addColorStop(0.5, 'rgba(0, 191, 255, 0.15)'); // Deep sky blue
+        shieldGradient.addColorStop(1, 'rgba(30, 144, 255, 0.1)');   // Dodger blue
         
         ctx.beginPath();
         ctx.arc(0, 0, bird.size/1.5, 0, Math.PI * 2);
         ctx.fillStyle = shieldGradient;
         ctx.fill();
         
-        // Animated shield ring
+        // Animated neon ring
         ctx.beginPath();
         ctx.arc(0, 0, bird.size/1.5, 0, Math.PI * 2);
-        ctx.strokeStyle = '#4287f5';
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+        ctx.lineWidth = 3;
         ctx.setLineDash([5, 5]);
-        ctx.lineDashOffset = -Date.now() / 50; // Rotating effect
+        ctx.lineDashOffset = -Date.now() / 50;
         ctx.stroke();
     }
 
@@ -780,29 +802,34 @@ updateKumsDisplay();
 
 // Function to draw water droplet
 function drawWaterDrop(ctx, x, y, size) {
-    ctx.beginPath();
-    ctx.moveTo(x, y - size/2);
+    ctx.save();
     
-    // Draw the teardrop shape
-    ctx.bezierCurveTo(
-        x - size/2, y - size/2,  // Control point 1
-        x - size/2, y + size/4,  // Control point 2
-        x, y + size/2            // End point
-    );
+    // Add glow effect
+    ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
+    ctx.shadowBlur = 15;
     
-    ctx.bezierCurveTo(
-        x + size/2, y + size/4,  // Control point 1
-        x + size/2, y - size/2,  // Control point 2
-        x, y - size/2            // End point
-    );
-    
-    // Add gradient for 3D effect
+    // Create gradient for water drop
     const gradient = ctx.createLinearGradient(
         x - size/2, y - size/2,
         x + size/2, y + size/2
     );
-    gradient.addColorStop(0, '#87CEFA');    // Light blue
-    gradient.addColorStop(1, '#1E90FF');    // Darker blue
+    gradient.addColorStop(0, 'rgba(0, 255, 255, 0.9)');    // Cyan
+    gradient.addColorStop(0.5, 'rgba(0, 191, 255, 0.8)');  // Deep sky blue
+    gradient.addColorStop(1, 'rgba(30, 144, 255, 0.9)');   // Dodger blue
+    
+    // Draw the teardrop shape
+    ctx.beginPath();
+    ctx.moveTo(x, y - size/2);
+    ctx.bezierCurveTo(
+        x - size/2, y - size/2,
+        x - size/2, y + size/4,
+        x, y + size/2
+    );
+    ctx.bezierCurveTo(
+        x + size/2, y + size/4,
+        x + size/2, y - size/2,
+        x, y - size/2
+    );
     
     ctx.fillStyle = gradient;
     ctx.fill();
@@ -812,6 +839,8 @@ function drawWaterDrop(ctx, x, y, size) {
     ctx.arc(x - size/4, y - size/4, size/6, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
     ctx.fill();
+    
+    ctx.restore();
 }
 
 // Update kums display with Font Awesome water icon
@@ -1016,69 +1045,16 @@ function drawPowerUp(powerUp) {
     }
 }
 
-// Update the showPowerUpMessage function
+// Simplified power-up message function without toast notifications
 function showPowerUpMessage(type) {
-    try {
-        // Only show messages in first game or for first-time power-ups
-        if (!powerUpHistory.firstGame && powerUpHistory.seenPowerUps[type]) {
-            return;
-        }
-
-        // Mark this power-up as seen
-        powerUpHistory.seenPowerUps[type] = true;
-        localStorage.setItem('seenPowerUps', JSON.stringify(powerUpHistory.seenPowerUps));
-
-        const messages = {
-            shield: 'Shield Activated! You are invincible!',
-            doubleScore: 'Double Score! Points are worth 2x!',
-            smallBird: 'Size Down! Easier to avoid obstacles!'
-        };
-
-        const message = document.createElement('div');
-        message.className = 'power-up-message';
-        
-        const powerUpKey = type.toUpperCase().replace(/\s+/g, '_');
-        const powerUpIcon = powerUps[powerUpKey]?.icon || 'fa-star';
-        
-        message.innerHTML = `
-            <div class="power-up-icon">
-                <i class="fas ${powerUpIcon}"></i>
-            </div>
-            <div class="power-up-text">
-                <div class="power-up-title">${type.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}</div>
-                <div class="power-up-description">${messages[type] || 'Power-up activated!'}</div>
-            </div>
-        `;
-        
-        message.style.cssText = `
-            position: absolute;
-            top: 20%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: linear-gradient(135deg, rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.7));
-            color: white;
-            padding: 15px 20px;
-            border-radius: 12px;
-            font-family: Arial, sans-serif;
-            font-size: 16px;
-            font-weight: bold;
-            animation: slideInAndFade 2.5s ease-in-out forwards;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(5px);
-            min-width: 300px;
-            max-width: 400px;
-        `;
-        
-        document.body.appendChild(message);
-        setTimeout(() => message.remove(), 2500);
-    } catch (error) {
-        console.error('Error showing power-up message:', error);
+    // Only update the power-up history
+    if (!powerUpHistory.firstGame && powerUpHistory.seenPowerUps[type]) {
+        return;
     }
+
+    // Mark this power-up as seen
+    powerUpHistory.seenPowerUps[type] = true;
+    localStorage.setItem('seenPowerUps', JSON.stringify(powerUpHistory.seenPowerUps));
 }
 
 // Add enhanced CSS animations
