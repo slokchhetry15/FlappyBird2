@@ -74,7 +74,7 @@ const POWER_UP_ICONS = {
 
 // Add this near the top of your file with other constants
 const MIN_POWER_UP_DISTANCE = 400; // Minimum distance between power-ups
-const POWER_UP_SPAWN_RATE = 0.003; // 0.3% chance per frame
+const POWER_UP_SPAWN_RATE = 0.0015; // Reduced to 0.15% chance per frame
 const MAX_POWER_UPS = 2;
 
 // Add this at the top of your file with other game state variables
@@ -234,7 +234,7 @@ function update() {
             }
         }
 
-        updateKums();
+        updateCoins();
         updatePowerUps();
 
         draw();
@@ -312,7 +312,8 @@ function draw() {
             drawPipe(pipe.x, pipe.top, pipe.bottom);
         });
 
-        drawKums();
+        // Draw coins instead of kums
+        drawCoins();
 
     } catch (error) {
         console.error('Draw error:', error);
@@ -344,9 +345,9 @@ function resetGame() {
     currentPowerUp = null;
     activePowerUps = [];
     particles = [];
-    kums = [];
-    kumsCollected = 0;
-    updateKumsDisplay();
+    coins = 0;
+    activeCoins = [];
+    updateCoinsDisplay();
     lastScoreUpdate = Date.now();
     scoreMultiplier = 1;
 
@@ -536,14 +537,18 @@ function drawActivePowerUpIndicator() {
         const indicator = document.getElementById('powerUpIndicator') || createPowerUpIndicator();
         
         indicator.innerHTML = `
-            <div class="power-up-content">
-                <i class="fas ${currentPowerUp.type.icon}"></i>
-                <span>${timeLeft}s</span>
+            <div class="flex items-center gap-2 mb-1">
+                <i class="fas ${currentPowerUp.type.icon} text-purple-400"></i>
+                <span class="text-white">${timeLeft}s</span>
             </div>
-            <div class="progress-bar">
-                <div class="progress" style="width: ${(timeLeft / (currentPowerUp.type.duration/1000)) * 100}%"></div>
+            <div class="w-20 h-1 bg-gray-700 rounded-full overflow-hidden">
+                <div class="h-full bg-purple-500 transition-all duration-200" 
+                     style="width: ${(timeLeft / (currentPowerUp.type.duration/1000)) * 100}%">
+                </div>
             </div>
         `;
+        
+        indicator.style.display = 'block';
     }
 }
 
@@ -786,164 +791,124 @@ birdImg.onerror = () => {
     console.error('Error loading bird image');
 };
 
-let kumsCollected = 0;
-let kums = [];
-const kumsDisplay = document.createElement('div');
-kumsDisplay.id = 'kumsDisplay';
-kumsDisplay.style.position = 'absolute';
-kumsDisplay.style.top = '10px';
-kumsDisplay.style.right = '10px';
-kumsDisplay.style.color = '#4287f5';
-kumsDisplay.style.fontSize = '24px';
-kumsDisplay.style.fontWeight = 'bold';
-kumsDisplay.style.textShadow = '2px 2px 4px rgba(0,0,0,0.5)';
-document.body.appendChild(kumsDisplay);
-updateKumsDisplay();
+let coins = 0;
+let activeCoins = [];
 
-// Function to draw water droplet
-function drawWaterDrop(ctx, x, y, size) {
-    ctx.save();
-    
-    // Add glow effect
-    ctx.shadowColor = 'rgba(0, 255, 255, 0.8)';
-    ctx.shadowBlur = 15;
-    
-    // Create gradient for water drop
-    const gradient = ctx.createLinearGradient(
-        x - size/2, y - size/2,
-        x + size/2, y + size/2
-    );
-    gradient.addColorStop(0, 'rgba(0, 255, 255, 0.9)');    // Cyan
-    gradient.addColorStop(0.5, 'rgba(0, 191, 255, 0.8)');  // Deep sky blue
-    gradient.addColorStop(1, 'rgba(30, 144, 255, 0.9)');   // Dodger blue
-    
-    // Draw the teardrop shape
-    ctx.beginPath();
-    ctx.moveTo(x, y - size/2);
-    ctx.bezierCurveTo(
-        x - size/2, y - size/2,
-        x - size/2, y + size/4,
-        x, y + size/2
-    );
-    ctx.bezierCurveTo(
-        x + size/2, y + size/4,
-        x + size/2, y - size/2,
-        x, y - size/2
-    );
-    
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    
-    // Add shine effect
-    ctx.beginPath();
-    ctx.arc(x - size/4, y - size/4, size/6, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.fill();
-    
-    ctx.restore();
-}
-
-// Update kums display with Font Awesome water icon
-function updateKumsDisplay() {
-    kumsDisplay.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 5px;">
-            <i class="fas fa-tint" style="color: #4287f5;"></i>
-            <span>${kumsCollected}</span>
-        </div>
-    `;
-}
-
-// Add function to draw kums
-function drawKums() {
-    kums.forEach(kum => {
-        if (!kum.collected) {
-            ctx.save();
-            
-            // Add glow effect
-            ctx.shadowColor = '#4287f5';
-            ctx.shadowBlur = 10;
-            
-            // Draw the water droplet
-            drawWaterDrop(
-                ctx,
-                kum.x + kum.size/2,
-                kum.y + kum.size/2 + Math.sin(kum.angle) * kum.wobbleAmount,
-                kum.size
-            );
-            
-            ctx.restore();
-        }
-    });
-}
-
-// Rest of the functions remain the same
-function createKum() {
+// Create coin function
+function createCoin() {
     return {
         x: canvas.width,
         y: Math.random() * (canvas.height - 100) + 50,
         size: 25,
         collected: false,
         angle: 0,
-        wobbleSpeed: Math.random() * 0.02 + 0.01,
+        rotationSpeed: Math.random() * 0.02 + 0.01,
         wobbleAmount: Math.random() * 5 + 3
     };
 }
 
-function createKumCollectEffect(x, y) {
+// Update coin collection effect
+function createCoinCollectEffect(x, y) {
     for (let i = 0; i < 8; i++) {
         particles.push(new Particle(
             x,
             y,
-            'rgba(66, 135, 245, 0.8)'
+            '#ffd700' // Gold color for particles
         ));
     }
 }
 
-// Adjust these constants at the top of your file
-const MAX_KUMS = 2;  // Maximum number of kums on screen
-const KUM_SPAWN_RATE = 0.003;  // Reduced spawn rate (was 0.01)
-const MIN_KUM_DISTANCE = 300;  // Minimum distance between kums
+// Update the coins display
+function updateCoinsDisplay() {
+    const coinsDisplay = document.querySelector('#coinsDisplay span');
+    if (coinsDisplay) {
+        coinsDisplay.textContent = coins;
+    }
+}
 
-// Update the updateKums function
-function updateKums() {
-    // Only spawn if we have less than maximum kums
-    if (Math.random() < KUM_SPAWN_RATE && kums.length < MAX_KUMS) {
-        // Check if there's enough distance from the last kum
-        const canSpawn = kums.every(kum => 
-            kum.x < canvas.width - MIN_KUM_DISTANCE
+// Update the drawCoins function (previously drawKums)
+function drawCoins() {
+    activeCoins.forEach(coin => {
+        if (!coin.collected) {
+            drawCoin(
+                ctx,
+                coin.x,
+                coin.y + Math.sin(coin.angle) * coin.wobbleAmount,
+                coin.size
+            );
+        }
+    });
+}
+
+// Update the updateCoins function (previously updateKums)
+function updateCoins() {
+    // Increased spawn rate (from 0.003 to 0.01) and increased max coins (from 2 to 3)
+    if (Math.random() < 0.01 && activeCoins.length < 3) {
+        const canSpawn = activeCoins.every(coin => 
+            coin.x < canvas.width - 200  // Reduced minimum distance between coins (from 300)
         );
         
         if (canSpawn) {
-            const newKum = createKum();
-            if (newKum) kums.push(newKum);
+            const newCoin = createCoin();
+            if (newCoin) activeCoins.push(newCoin);
         }
     }
 
-    // Rest of the function remains the same
-    for (let i = kums.length - 1; i >= 0; i--) {
-        const kum = kums[i];
-        kum.x -= 3 * gameSpeed;
-        kum.angle += kum.wobbleSpeed;
-        kum.y += Math.sin(kum.angle) * 0.5;
+    // Update existing coins
+    for (let i = activeCoins.length - 1; i >= 0; i--) {
+        const coin = activeCoins[i];
+        coin.x -= 3 * gameSpeed;
+        coin.angle += coin.rotationSpeed;
 
-        if (kum.x < -kum.size) {
-            kums.splice(i, 1);
+        if (coin.x < -coin.size) {
+            activeCoins.splice(i, 1);
             continue;
         }
 
-        if (!kum.collected && 
-            bird.x < kum.x + kum.size &&
-            bird.x + bird.size > kum.x &&
-            bird.y < kum.y + kum.size &&
-            bird.y + bird.size > kum.y) {
+        // Check collision with bird
+        if (!coin.collected && 
+            bird.x < coin.x + coin.size &&
+            bird.x + bird.size > coin.x &&
+            bird.y < coin.y + coin.size &&
+            bird.y + bird.size > coin.y) {
             
-            kum.collected = true;
-            kumsCollected++;
-            updateKumsDisplay();
-            createKumCollectEffect(kum.x, kum.y);
-            kums.splice(i, 1);
+            coin.collected = true;
+            coins++;
+            updateCoinsDisplay();
+            createCoinCollectEffect(coin.x, coin.y);
+            activeCoins.splice(i, 1);
         }
     }
+}
+
+// Replace the water droplet drawing function with coin drawing
+function drawCoin(ctx, x, y, size) {
+    ctx.save();
+    
+    // Add glow effect
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 15;
+    
+    // Draw the coin
+    ctx.beginPath();
+    ctx.arc(x + size/2, y + size/2, size/2, 0, Math.PI * 2);
+    
+    // Create gradient for metallic effect
+    const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
+    gradient.addColorStop(0, '#ffd700');    // Gold
+    gradient.addColorStop(0.5, '#fff1af');  // Light gold
+    gradient.addColorStop(1, '#ffd700');    // Gold
+    
+    ctx.fillStyle = gradient;
+    ctx.fill();
+    
+    // Add shine effect
+    ctx.beginPath();
+    ctx.arc(x + size/3, y + size/3, size/6, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.fill();
+    
+    ctx.restore();
 }
 
 // Create power-up indicator element
@@ -955,21 +920,8 @@ function createPowerUpIndicator() {
 
     const indicator = document.createElement('div');
     indicator.id = 'powerUpIndicator';
-    indicator.style.cssText = `
-        position: absolute;
-        top: 60px;
-        left: 10px;
-        background: rgba(0, 0, 0, 0.8);
-        padding: 15px;
-        border-radius: 10px;
-        color: white;
-        font-family: Arial, sans-serif;
-        font-size: 16px;
-        font-weight: bold;
-        z-index: 1000;
-        box-shadow: 0 0 10px rgba(0,0,0,0.5);
-        border: 2px solid rgba(255,255,255,0.2);
-    `;
+    indicator.className = 'absolute top-4 left-4 bg-black/80 p-3 rounded-lg border border-purple-500/30';
+    
     document.body.appendChild(indicator);
     return indicator;
 }
@@ -1068,4 +1020,52 @@ const powerUpStyles = `
 const powerUpStyleSheet = document.createElement('style');
 powerUpStyleSheet.textContent = powerUpStyles;
 document.head.appendChild(powerUpStyleSheet);
+
+// Update canvas dimensions
+function updateCanvasDimensions() {
+    const container = canvas.parentElement;
+    const maxWidth = Math.min(window.innerWidth - 32, 480); // 16px padding on each side
+    const maxHeight = Math.min(window.innerHeight - 32, 640); // 16px padding on each side
+    
+    canvas.width = maxWidth;
+    canvas.height = maxHeight;
+}
+
+// Call this function on window resize
+window.addEventListener('resize', updateCanvasDimensions);
+updateCanvasDimensions(); // Initial call
+
+// Add this function to handle canvas sizing
+function resizeCanvas() {
+    const canvas = document.getElementById('gameCanvas');
+    const container = document.querySelector('.game-container');
+    
+    // Define your desired aspect ratio (width:height)
+    const aspectRatio = 480/640; // or whatever your game's ideal ratio is
+    
+    // Get available space
+    const maxWidth = window.innerWidth - 40; // 20px margin on each side
+    const maxHeight = window.innerHeight - 40; // 20px margin on each side
+    
+    let newWidth = maxWidth;
+    let newHeight = maxWidth / aspectRatio;
+    
+    // If height is too big, scale based on height instead
+    if (newHeight > maxHeight) {
+        newHeight = maxHeight;
+        newWidth = maxHeight * aspectRatio;
+    }
+    
+    // Update container size
+    container.style.width = `${newWidth}px`;
+    container.style.height = `${newHeight}px`;
+    
+    // Update canvas size
+    canvas.width = newWidth;
+    canvas.height = newHeight;
+}
+
+// Call on load and resize
+window.addEventListener('load', resizeCanvas);
+window.addEventListener('resize', resizeCanvas);
   
