@@ -48,21 +48,21 @@ const powerUps = {
         duration: 5000, 
         color: 'rgba(66, 135, 245, 0.8)',
         gradient: ['#4287f5', '#1a56c4'],
-        icon: '⚡'
+        icon: 'fa-shield-halved'  // Font Awesome shield icon
     },
     SLOW_TIME: { 
         type: 'slowTime', 
         duration: 3000, 
         color: 'rgba(245, 66, 242, 0.8)',
         gradient: ['#f542f2', '#b816b5'],
-        icon: '★'
+        icon: 'fa-clock'  // Font Awesome clock icon
     },
     SMALL_BIRD: { 
         type: 'smallBird', 
         duration: 4000, 
         color: 'rgba(66, 245, 84, 0.8)',
         gradient: ['#42f554', '#1cb82b'],
-        icon: '◊'
+        icon: 'fa-compress'  // Font Awesome compress icon
     }
 };
 
@@ -470,31 +470,17 @@ function updatePowerUps() {
 function drawActivePowerUpIndicator() {
     if (currentPowerUp) {
         const timeLeft = Math.ceil((currentPowerUp.endTime - Date.now()) / 1000);
-        const width = 150;
-        const height = 40;
-        const x = 10;
-        const y = 40;
-
-        // Background
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        ctx.beginPath();
-        ctx.roundRect(x, y, width, height, 10);
-        ctx.fill();
-
-        // Progress bar
-        const progress = (currentPowerUp.endTime - Date.now()) / currentPowerUp.type.duration;
-        const barWidth = (width - 20) * progress;
+        const indicator = document.getElementById('powerUpIndicator') || createPowerUpIndicator();
         
-        ctx.fillStyle = currentPowerUp.type.gradient[0];
-        ctx.beginPath();
-        ctx.roundRect(x + 10, y + height - 8, barWidth, 4, 2);
-        ctx.fill();
-
-        // Icon and text
-        ctx.fillStyle = 'white';
-        ctx.font = 'bold 18px Arial';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${currentPowerUp.type.icon} ${timeLeft}s`, x + 20, y + height/2);
+        indicator.innerHTML = `
+            <div class="power-up-content">
+                <i class="fas ${currentPowerUp.type.icon}"></i>
+                <span>${timeLeft}s</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress" style="width: ${(timeLeft / (currentPowerUp.type.duration/1000)) * 100}%"></div>
+            </div>
+        `;
     }
 }
 
@@ -597,41 +583,62 @@ function updateParticles() {
     });
 }
 
-// Separate power-up drawing function
-function drawPowerUp(powerUp) {
-    try {
-        // Outer glow
-        ctx.beginPath();
-        const gradient = ctx.createRadialGradient(
-            powerUp.x + powerUp.size/2, powerUp.y + powerUp.size/2, 0,
-            powerUp.x + powerUp.size/2, powerUp.y + powerUp.size/2, powerUp.size
-        );
-        gradient.addColorStop(0, powerUp.type.gradient[0]);
-        gradient.addColorStop(1, 'transparent');
-        
-        ctx.arc(powerUp.x + powerUp.size/2, powerUp.y + powerUp.size/2, 
-               powerUp.size, 0, Math.PI * 2);
-        ctx.fillStyle = gradient;
-        ctx.fill();
+// Function to draw power-up icons
+function drawPowerUpIcon(ctx, type, x, y, size) {
+    ctx.save();
+    switch(type) {
+        case 'shield':
+            // Draw shield icon
+            ctx.beginPath();
+            ctx.moveTo(x, y - size/2);
+            ctx.lineTo(x + size/2, y - size/4);
+            ctx.lineTo(x + size/2, y + size/4);
+            ctx.lineTo(x, y + size/2);
+            ctx.lineTo(x - size/2, y + size/4);
+            ctx.lineTo(x - size/2, y - size/4);
+            ctx.closePath();
+            ctx.fillStyle = '#4287f5';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            break;
 
-        // Inner circle
-        ctx.beginPath();
-        ctx.arc(powerUp.x + powerUp.size/2, powerUp.y + powerUp.size/2, 
-               powerUp.size/2, 0, Math.PI * 2);
-        ctx.fillStyle = powerUp.type.gradient[1];
-        ctx.fill();
+        case 'slowTime':
+            // Draw clock icon
+            ctx.beginPath();
+            ctx.arc(x, y, size/2, 0, Math.PI * 2);
+            ctx.fillStyle = '#f542f2';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Draw clock hands
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+            ctx.lineTo(x, y - size/3);
+            ctx.moveTo(x, y);
+            ctx.lineTo(x + size/3, y);
+            ctx.stroke();
+            break;
 
-        // Icon with improved rendering
-        ctx.font = 'bold 20px Arial';
-        ctx.fillStyle = 'white';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(powerUp.type.icon, 
-                    powerUp.x + powerUp.size/2, 
-                    powerUp.y + powerUp.size/2);
-    } catch (error) {
-        console.error('Power-up draw error:', error);
+        case 'smallBird':
+            // Draw diamond icon
+            ctx.beginPath();
+            ctx.moveTo(x, y - size/2);
+            ctx.lineTo(x + size/2, y);
+            ctx.lineTo(x, y + size/2);
+            ctx.lineTo(x - size/2, y);
+            ctx.closePath();
+            ctx.fillStyle = '#42f554';
+            ctx.fill();
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            break;
     }
+    ctx.restore();
 }
 
 let particles = [];
@@ -756,9 +763,14 @@ function drawWaterDrop(ctx, x, y, size) {
     ctx.fill();
 }
 
-// Update kums display
+// Update kums display with Font Awesome water icon
 function updateKumsDisplay() {
-    kumsDisplay.innerHTML = `<span style="color: #4287f5;">💧</span> ${kumsCollected}`;
+    kumsDisplay.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 5px;">
+            <i class="fas fa-tint" style="color: #4287f5;"></i>
+            <span>${kumsCollected}</span>
+        </div>
+    `;
 }
 
 // Add function to draw kums
@@ -837,6 +849,96 @@ function updateKums() {
             createKumCollectEffect(kum.x, kum.y);
             kums.splice(i, 1);
         }
+    }
+}
+
+// Create power-up indicator element
+function createPowerUpIndicator() {
+    const indicator = document.createElement('div');
+    indicator.id = 'powerUpIndicator';
+    indicator.style.cssText = `
+        position: absolute;
+        top: 60px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.7);
+        padding: 10px;
+        border-radius: 5px;
+        color: white;
+        font-family: Arial, sans-serif;
+        font-weight: bold;
+    `;
+    document.body.appendChild(indicator);
+    return indicator;
+}
+
+// Add CSS styles
+const styles = `
+    .power-up-content {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 5px;
+    }
+    .progress-bar {
+        width: 100px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 2px;
+        overflow: hidden;
+    }
+    .progress {
+        height: 100%;
+        background: white;
+        transition: width 0.1s linear;
+    }
+`;
+
+// Add styles to document
+const styleSheet = document.createElement('style');
+styleSheet.textContent = styles;
+document.head.appendChild(styleSheet);
+
+// Update power-up drawing in main draw function
+function drawPowerUp(powerUp) {
+    if (!powerUp.collected) {
+        ctx.save();
+        
+        // Draw glow effect
+        ctx.shadowColor = powerUp.type.color;
+        ctx.shadowBlur = 10;
+        
+        // Draw background circle
+        ctx.beginPath();
+        ctx.arc(powerUp.x + powerUp.size/2, powerUp.y + powerUp.size/2, 
+                powerUp.size/2, 0, Math.PI * 2);
+        const gradient = ctx.createRadialGradient(
+            powerUp.x + powerUp.size/2, powerUp.y + powerUp.size/2, 0,
+            powerUp.x + powerUp.size/2, powerUp.y + powerUp.size/2, powerUp.size/2
+        );
+        gradient.addColorStop(0, powerUp.type.gradient[0]);
+        gradient.addColorStop(1, powerUp.type.gradient[1]);
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        
+        // Draw icon using HTML element
+        const iconElement = document.createElement('i');
+        iconElement.className = `fas ${powerUp.type.icon}`;
+        iconElement.style.color = 'white';
+        iconElement.style.fontSize = `${powerUp.size * 0.6}px`;
+        
+        // Convert icon to image and draw on canvas
+        const svg = new XMLSerializer().serializeToString(iconElement);
+        const img = new Image();
+        img.src = 'data:image/svg+xml;base64,' + btoa(svg);
+        img.onload = () => {
+            ctx.drawImage(img, 
+                powerUp.x + powerUp.size/2 - powerUp.size * 0.3, 
+                powerUp.y + powerUp.size/2 - powerUp.size * 0.3, 
+                powerUp.size * 0.6, 
+                powerUp.size * 0.6);
+        };
+        
+        ctx.restore();
     }
 }
   
