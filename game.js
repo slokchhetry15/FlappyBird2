@@ -16,7 +16,7 @@ birdImg.src = 'bird.png';
 const INITIAL_GAP = 200;  // Starting gap size
 const MIN_GAP = 160;      // Minimum gap size
 const GAP_DECREASE = 2;   // How much to decrease gap per pillar
-const PILLAR_START_DISTANCE = 100; // Reduced delay for first pillar1
+const PILLAR_START_DISTANCE = 100; // Reduced delay for first pillar
 
 const bird = {
     x: 120,          // Moved bird more to the right
@@ -177,9 +177,6 @@ function update() {
             scoreDisplay.textContent = `Score: ${Math.floor(score)}`;
             lastScoreUpdate = currentTime;
         }
-
-        // Rest of your update function...
-        // Remove any score updates based on pipes
 
         // Bird physics
         if (!bird.initialDelay) {
